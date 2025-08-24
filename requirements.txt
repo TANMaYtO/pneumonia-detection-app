@@ -2,5 +2,7 @@ torch
 torchvision
 gradio
 numpy
-pillow
 matplotlib
+pillow
+opencv-python-headless
+pandas
