@@ -1,0 +1,2 @@
+Upload Chest X-ray,Prediction,Grad-CAM,timestamp
+.gradio\flagged\Upload Chest X-ray\8753c4c6d89c9bec8977\IM-0413-0001.jpeg,"{""label"": ""Pneumonia"", ""confidences"": [{""label"": ""Pneumonia"", ""confidence"": 0.8168768286705017}, {""label"": ""Normal"", ""confidence"": 0.1831231713294983}]}",.gradio\flagged\Grad-CAM\91db8094d76d3d02894a\image.webp,2025-08-24 18:43:26.662565

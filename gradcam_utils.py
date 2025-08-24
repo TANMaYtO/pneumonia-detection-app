@@ -1,85 +1,83 @@
+import torch 
+import torch.nn.functional as F
 import cv2
-import numpy as np
-import torch
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 
 class GradCAM:
     def __init__(self, model, target_layer):
         self.model = model
         self.target_layer = target_layer
-        self.gradients = None
-        self.activations = None
 
-        # Hook for forward pass
-        self.fwd_hook = target_layer.register_forward_hook(self.save_activation)
-        # Hook for backward pass (full_backward_hook to avoid warnings)
-        self.bwd_hook = target_layer.register_full_backward_hook(self.save_gradient)
+        #to store activations and gradients
+        self.activation = None
+        self.gradients = None
+
+        ##HOOK THE FORWARD AND BACKWARD PASSES
+        target_layer.register_forward_hook(self.save_activation)
+        target_layer.register_backward_hook(self.save_gradients)
 
     def save_activation(self, module, input, output):
         self.activations = output.detach()
 
-    def save_gradient(self, module, grad_input, grad_output):
-        # grad_output is a tuple → take the first element
+    def save_gradients(self, module, grad_input, grad_output):
+        # grad_output is always a tuple
         self.gradients = grad_output[0].detach()
 
     def generate(self, input_tensor, class_idx=None):
-        self.model.zero_grad()
+        """
+        input_tensor: single image tensor [1, C, H, W]
+        class_idx: class index for which Grad-CAM is computed (default = predicted class)
+        """
 
-        # Forward
-        scores = self.model(input_tensor)
+        # forward pass
+        output = self.model(input_tensor)
+        if isinstance(output, tuple):  # <-- FIX
+            output = output[0]
 
         if class_idx is None:
-            class_idx = torch.argmax(scores, dim=1).item()
+            class_idx = output.argmax(dim=1).item()
 
-        # Backward
-        target = scores[:, class_idx]
-        target.backward()
+        # backward pass: get gradients wrt chosen class
+        self.model.zero_grad()
+        output[0, class_idx].backward()
 
-        # Compute Grad-CAM
-        grads = self.gradients  # [B, C, H, W]
-        activs = self.activations  # [B, C, H, W]
-        weights = torch.mean(grads, dim=(2, 3), keepdim=True)  # [B, C, 1, 1]
+        # Global average pool gradients -> weights
+        weights = self.gradients.mean(dim=(2, 3), keepdim=True)
 
-        cam = torch.sum(weights * activs, dim=1, keepdim=True)  # [B, 1, H, W]
-        cam = torch.relu(cam)
+        # weighted sum of activation
+        cam = (weights * self.activations).sum(dim=1, keepdim=True)
 
-        # Normalize to [0,1]
-        cam -= cam.min()
-        cam /= cam.max() + 1e-8
+        cam = F.relu(cam)
 
-        # Upsample CAM to match input size
-        cam = torch.nn.functional.interpolate(
-            cam, size=input_tensor.shape[2:], mode="bilinear", align_corners=False
-        )
+        # Normalize
+        cam = cam.squeeze().cpu().numpy()
+        cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
 
-        return cam.squeeze().cpu().numpy()
+        return cam
 
-
-def show_cam_on_image(img: np.ndarray, mask: np.ndarray, alpha: float = 0.5, show: bool = False):
+def show_cam_on_image(img: np.ndarray, mask: np.ndarray, alpha: float = 0.5):
     """
-    Overlay Grad-CAM mask on image.
-
-    Args:
-        img (np.ndarray): Original image (H,W,3) in [0,1].
-        mask (np.ndarray): Grad-CAM mask (H,W) in [0,1].
-        alpha (float): Transparency.
-        show (bool): Whether to display with matplotlib.
-
-    Returns:
-        np.ndarray: Overlay image (H,W,3) in uint8.
+    img: original image (H,W,3) in [0,1]
+    mask: CAM heatmap (H_feat,W_feat) or (H_feat,W_feat,1)
     """
-    heatmap = cv2.applyColorMap(np.uint8(255 * mask), cv2.COLORMAP_JET)
+    # 1. Resize mask to match image
+    mask_resized = cv2.resize(mask, (img.shape[1], img.shape[0]))
+    
+    # 2. Normalize to [0,1]
+    mask_resized = (mask_resized - mask_resized.min()) / (mask_resized.max() - mask_resized.min() + 1e-8)
+
+    # 3. Apply colormap
+    heatmap = cv2.applyColorMap(np.uint8(255 * mask_resized), cv2.COLORMAP_JET)
     heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
 
-    overlay = np.uint8(255 * img)
-    overlay = np.clip(overlay * (1 - alpha) + heatmap * alpha, 0, 255).astype(np.uint8)
+    # 4. Overlay heatmap on image
+    overlay = np.float32(heatmap) / 255
+    result = overlay * alpha + img * (1 - alpha)
+    result = np.clip(result, 0, 1)
 
-    if show:
-        plt.figure(figsize=(6, 6))
-        plt.imshow(overlay)
-        plt.axis("off")
-        plt.title("Grad-CAM Overlay")
-        plt.show()
-
-    return overlay
+    plt.imshow(result)
+    plt.axis("off")
+    return result

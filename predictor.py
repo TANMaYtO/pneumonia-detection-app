@@ -1,65 +1,73 @@
 import torch
-import torch.nn as nn
-import torchvision.transforms as transforms
-from PIL import Image
 import numpy as np
-
+import matplotlib.pyplot as plt
+from PIL import Image
+import torchvision.transforms as transforms
 from gradcam_utils import GradCAM, show_cam_on_image
+import numpy as np
+import pandas as pd
+import torch.nn as nn
+from torchvision import models
 
-def load_model(model_path="pneumonia_model.pth", device=None):
-    """
-    Load the trained Pneumonia classification model.
-    """
-    if device is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Define model architecture (must match training!)
-    # Replace this with your actual model definition
-    from torchvision.models import resnet18
-    model = resnet18(weights=None)
-    model.fc = nn.Linear(model.fc.in_features, 2)  # 2 classes: Normal vs Pneumonia
+def build_model(num_classes=2):
+    model = models.resnet18(pretrained=True)
+    in_features = model.fc.in_features
+    model.fc = nn.Linear(in_features, num_classes)
+    return model
 
-    # Load weights
-    state_dict = torch.load(model_path, map_location=device)
-    model.load_state_dict(state_dict)
-    model.eval().to(device)
+class PneumoniaPredictor:
+    def __init__(self, model, gradcam, device="cuda"):
+        self.model = model.to(device)
+        self.model.eval()
+        self.gradcam = gradcam
+        self.device = device
 
-    return model, device
+        # same preprocessing as training
+        self.transform = transforms.Compose([
+            transforms.Resize((224,224)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])
+        ])
+        self.class_names = ['Normal', 'Pneumonia']
 
-def preprocess_image(image: Image.Image):
-    """
-    Apply preprocessing to input image.
-    """
-    transform = transforms.Compose([
-        transforms.Resize((224, 224)),  # must match training input size
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                             std=[0.229, 0.224, 0.225])
-    ])
-    return transform(image).unsqueeze(0)  # [1, C, H, W]
+    def predict(self, img_path, show=True):
+        # load image
+        pil_img = Image.open(img_path).convert("RGB")
 
-def PneumoniaPredictor(image: Image.Image, model, device):
-    """
-    Run model inference + Grad-CAM visualization.
-    """
-    input_tensor = preprocess_image(image).to(device)
+        # preprocess
+        img_tensor = self.transform(pil_img).unsqueeze(0).to(self.device)
 
-    # Run Grad-CAM on last conv layer
-    target_layer = list(model.layer4.children())[-1]  # last ResNet block
-    cam = GradCAM(model, target_layer)
-    mask = cam.generate(input_tensor)
+        # prediction
+        with torch.no_grad():
+            outputs = self.model(img_tensor)
+            probs = torch.softmax(outputs, dim=1)
+            pred_class = torch.argmax(probs, dim=1).item()
+            confidence = probs[0][pred_class].item()
 
-    # Get prediction
-    with torch.no_grad():
-        outputs = model(input_tensor)
-        probs = torch.softmax(outputs, dim=1)[0]
-        pred_class = torch.argmax(probs).item()
+        pred_label = self.class_names[pred_class]
 
-    classes = ["Normal", "Pneumonia"]
-    label = f"{classes[pred_class]} ({probs[pred_class]:.2f})"
+        # Undo normalization for viz
+        img_np = np.array(pil_img.resize((224,224))) / 255.0
 
-    # Convert PIL -> np for overlay
-    img_np = np.array(image.resize((224, 224))).astype(np.float32) / 255.0
-    overlay = show_cam_on_image(img_np, mask)
+        # grad-cam
+        cam = self.gradcam.generate(img_tensor)
 
-    return label, overlay
+        if show:
+            plt.figure(figsize=(10,4))
+
+            plt.subplot(1,2,1)
+            plt.imshow(img_np)
+            plt.title("Uploaded X-ray")
+            plt.axis("off")
+
+            plt.subplot(1,2,2)
+            show_cam_on_image(img_np, cam)
+            plt.title(f"Grad-CAM\nPred: {pred_label} ({confidence*100:.1f}%)")
+            plt.axis("off")
+
+            plt.show()
+
+        return pred_label, confidence
