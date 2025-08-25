@@ -14,7 +14,7 @@ Deployed seamlessly on **Hugging Face Spaces** with Gradio.
 
 | Upload Screen | Prediction Result | Grad-CAM Visualization |
 |---------------|------------------|-------------------------|
-| ![Upload](screenshots\demo.PNG) | ![Prediction](screenshots\prediction.PNG) | ![Grad-CAM](screenshots\gradcam.PNG) |
+| ![Upload](screenshots/demo.PNG) | ![Prediction](screenshots/prediction.PNG) | ![Grad-CAM](screenshots/gradcam.PNG) |
 
 ---
 
