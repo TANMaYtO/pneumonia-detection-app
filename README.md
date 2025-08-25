@@ -36,7 +36,7 @@ git clone https://github.com/TANMaYtO/pneumonia-detection-app
 cd pneumonia-detection-app
 pip install -r requirements.txt
 gradio app.py
-    
+```
 ---
 
 ## 📌 Usage  
